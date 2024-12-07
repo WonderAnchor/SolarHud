@@ -1,4 +1,4 @@
-package net.wonderanchor.sunblockcore;
+package net.wonderanchor.solarhud;
 
 import com.mojang.logging.LogUtils;
 import net.minecraftforge.api.distmarker.Dist;
@@ -14,12 +14,12 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 
 //The value here should match an entry in the META-INF/mods.toml file
-@Mod(SunblockCore.MODID)
-public class SunblockCore {
-    public static final String MODID = "sunblockcore";
+@Mod(SolarHudMain.MODID)
+public class SolarHudMain {
+    public static final String MODID = "solarhud";
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    public SunblockCore() {
+    public SolarHudMain() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         modEventBus.addListener(this::commonSetup);

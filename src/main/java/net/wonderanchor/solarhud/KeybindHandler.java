@@ -1,4 +1,4 @@
-package net.wonderanchor.sunblockcore;
+package net.wonderanchor.solarhud;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraftforge.api.distmarker.Dist;
@@ -10,16 +10,16 @@ import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.glfw.GLFW;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 
-@Mod.EventBusSubscriber(modid = "sunblockcore", bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = "solarhud", bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class KeybindHandler {
 
     //Create a keybinding instance
     public static final KeyMapping SUNBLOCK_SOLAR_HUD_KEY = new KeyMapping(
-            "key.sunblockcore.solar_hud", // Translation key
+            "key.solarhud.solar_hud", // Translation key
             KeyConflictContext.IN_GAME,
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_G, //Default key is 'G'
-            "key.categories.sunblockcore" //Category
+            "key.categories.solarhud" //Category
     );
 
     //Register the keybinding

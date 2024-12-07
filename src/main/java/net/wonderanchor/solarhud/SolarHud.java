@@ -1,4 +1,4 @@
-package net.wonderanchor.sunblockcore;
+package net.wonderanchor.solarhud;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
@@ -12,7 +12,7 @@ import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@Mod.EventBusSubscriber(modid = "sunblockcore", value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = "solarhud", value = Dist.CLIENT)
 public class SolarHud {
 
     private static final Minecraft minecraft = Minecraft.getInstance();
@@ -50,9 +50,9 @@ public class SolarHud {
         String texturePath = getTexturePath(DataHandler.getTimestamp());
 
         try {
-            RenderSystem.setShaderTexture(0, new ResourceLocation("sunblockcore", texturePath.toLowerCase()));
+            RenderSystem.setShaderTexture(0, new ResourceLocation("solarhud", texturePath.toLowerCase()));
             //Renders the background image.
-            guiGraphics.blit(new ResourceLocation("sunblockcore", texturePath.toLowerCase()), 60, event.getWindow().getGuiScaledHeight() - 108, 0, 0, 168, 108, 168, 108);
+            guiGraphics.blit(new ResourceLocation("solarhud", texturePath.toLowerCase()), 60, event.getWindow().getGuiScaledHeight() - 108, 0, 0, 168, 108, 168, 108);
 
             String[] timeParts = DataHandler.getTimestamp().split(" ")[1].split(":" );
             String timeString = timeParts[0] + ":" + timeParts[1];
@@ -79,8 +79,8 @@ public class SolarHud {
 
     //Setup drawIcon (icon sizes).
     private static void drawIcon(GuiGraphics guiGraphics, String iconPath, int x, int y) {
-        RenderSystem.setShaderTexture(0, new ResourceLocation("sunblockcore", iconPath.toLowerCase()));
-        guiGraphics.blit(new ResourceLocation("sunblockcore", iconPath.toLowerCase()), x, y, 0, 0, 16, 16, 16, 16);
+        RenderSystem.setShaderTexture(0, new ResourceLocation("solarhud", iconPath.toLowerCase()));
+        guiGraphics.blit(new ResourceLocation("solarhud", iconPath.toLowerCase()), x, y, 0, 0, 16, 16, 16, 16);
     }
 
     //Selects the background depending on real world hour.
@@ -124,12 +124,12 @@ public class SolarHud {
     //Selects Sun icon depending on Power generation.
     private static String getGenerationIcon() {
         float pvPower = DataHandler.getPvPower();
-        if (pvPower < 20) {
-            return "textures/gui/mc_sb_icons_iso_sun.png";
-        } else if (pvPower < 50) {
+        if (pvPower < 10) {
+            return "textures/gui/mc_sb_icons_iso_sun_r.png";
+        } else if (pvPower < 22) {
             return "textures/gui/mc_sb_icons_iso_sun_o.png";
         } else {
-            return "textures/gui/mc_sb_icons_iso_sun_r.png";
+            return "textures/gui/mc_sb_icons_iso_sun.png";
         }
     }
 

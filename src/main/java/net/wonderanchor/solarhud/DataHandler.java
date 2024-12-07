@@ -1,4 +1,4 @@
-package net.wonderanchor.sunblockcore;
+package net.wonderanchor.solarhud;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -18,7 +18,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 
-@Mod.EventBusSubscriber(modid = "sunblockcore", value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = "solarhud", value = Dist.CLIENT)
 public class DataHandler {
     //The URL of the rest API for the Solar Server
     private static final String API_URL = "https://photon.sunblockone.milieux.ca/";
