@@ -4,6 +4,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.client.settings.KeyConflictContext;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -13,14 +14,18 @@ import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 @Mod.EventBusSubscriber(modid = "solarhud", bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class KeybindHandler {
 
-    //Create a keybinding instance
+    //Create a keybinding instances
     public static final KeyMapping SUNBLOCK_SOLAR_HUD_KEY = new KeyMapping(
-            "key.solarhud.solar_hud", // Translation key
+            "key.solarhud.solar_hud", //Translation key
             KeyConflictContext.IN_GAME,
             InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_G, //Default key is 'G'
+            GLFW.GLFW_KEY_G, //Default key
             "key.categories.solarhud" //Category
     );
+
+    public KeybindHandler() {
+        MinecraftForge.EVENT_BUS.register(this);
+    }
 
     //Register the keybinding
     @SubscribeEvent
@@ -34,5 +39,6 @@ public class KeybindHandler {
         if (SUNBLOCK_SOLAR_HUD_KEY.consumeClick()) {
             System.out.println("Sunblock Solar HUD key pressed!");
         }
+
     }
 }

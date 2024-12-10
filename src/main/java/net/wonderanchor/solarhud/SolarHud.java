@@ -15,6 +15,40 @@ import org.apache.logging.log4j.Logger;
 @Mod.EventBusSubscriber(modid = "solarhud", value = Dist.CLIENT)
 public class SolarHud {
 
+    private static float scale = 1.0f; //Default scale
+    private static float opacity = 1.0f; //Default opacity
+    private static int positionX = 60; //Default X position
+    private static int positionY = 60; //Default Y position
+
+    public static void setScale(float scale) {
+        SolarHud.scale = scale;
+    }
+
+    public static void setOpacity(float opacity) {
+        SolarHud.opacity = opacity;
+    }
+
+    public static void setPosition(int x, int y) {
+        SolarHud.positionX = x;
+        SolarHud.positionY = y;
+    }
+
+    public static float getScale() {
+        return scale;
+    }
+
+    public static float getOpacity() {
+        return opacity;
+    }
+
+    public static int getPositionX() {
+        return positionX;
+    }
+
+    public static int getPositionY() {
+        return positionY;
+    }
+
     private static final Minecraft minecraft = Minecraft.getInstance();
     private static final Logger LOGGER = LogManager.getLogger();
     private static boolean isHudVisible = false;

@@ -1,4 +1,5 @@
 {
-  "key.solarhud.solar_hud": "Set sail for peering at the sun ya salty swine!",
-  "key.categories.solarhud": "Solar Hud"
+  "key.solarhud.solar_hud": "Arrgh! Toggle Solar HUD!",
+  "key.categories.solarhud": "Yarr! Solar HUD!",
+  "key.solarhud.open_settings": "Solar HUD Settings"
 }
