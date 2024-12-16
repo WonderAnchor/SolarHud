@@ -12,42 +12,8 @@ import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@Mod.EventBusSubscriber(modid = "solarhud", value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = SolarHudMain.MODID, value = Dist.CLIENT)
 public class SolarHud {
-
-    private static float scale = 1.0f; //Default scale
-    private static float opacity = 1.0f; //Default opacity
-    private static int positionX = 60; //Default X position
-    private static int positionY = 60; //Default Y position
-
-    public static void setScale(float scale) {
-        SolarHud.scale = scale;
-    }
-
-    public static void setOpacity(float opacity) {
-        SolarHud.opacity = opacity;
-    }
-
-    public static void setPosition(int x, int y) {
-        SolarHud.positionX = x;
-        SolarHud.positionY = y;
-    }
-
-    public static float getScale() {
-        return scale;
-    }
-
-    public static float getOpacity() {
-        return opacity;
-    }
-
-    public static int getPositionX() {
-        return positionX;
-    }
-
-    public static int getPositionY() {
-        return positionY;
-    }
 
     private static final Minecraft minecraft = Minecraft.getInstance();
     private static final Logger LOGGER = LogManager.getLogger();
@@ -56,10 +22,9 @@ public class SolarHud {
 
     @SubscribeEvent
     public static void onKeyInput(TickEvent.ClientTickEvent event) {
-        if (minecraft.options == null || minecraft.screen != null) {
+        if (minecraft.screen != null) {
             return;
         }
-        //Detects key press and changes isHudVisible value. Also logs message for testing.
         if (KeybindHandler.SUNBLOCK_SOLAR_HUD_KEY.consumeClick()) {
             isHudVisible = !isHudVisible;
             LOGGER.info("HUD visibility toggled: {}", isHudVisible);
@@ -77,61 +42,94 @@ public class SolarHud {
 
         if (!hasLoggedRender) {
             LOGGER.info("Rendering Solar HUD");
-            hasLoggedRender = true;//Boolean value here just makes sure message is printed once.
+            hasLoggedRender = true;
         }
 
         GuiGraphics guiGraphics = event.getGuiGraphics();
+
+        double configScale = SolarHudConfig.HUD_SCALE.get();
+        double configOpacity = SolarHudConfig.HUD_OPACITY.get();
+        float op = (float) configOpacity;
+
+        // Calculate text alpha with 0.32 threshold
+        int originalAlpha = (int)(configOpacity * 255) & 0xFF;
+        int textAlpha;
+        if (originalAlpha < 82) {
+            textAlpha = 0;
+        } else {
+            textAlpha = (int)(((originalAlpha - 82) / 173.0) * 255.0); // 173 = 255 - 82
+        }
+        int textColor = (textAlpha << 24) | 0xFFFFFF;
+
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, op);
+
+        guiGraphics.pose().pushPose();
+        guiGraphics.pose().translate((float)SolarHudConfig.HUD_X_POSITION.get(), (float)SolarHudConfig.HUD_Y_POSITION.get(), 0);
+        guiGraphics.pose().scale((float)configScale, (float)configScale, 1.0F);
+
         String texturePath = getTexturePath(DataHandler.getTimestamp());
+        RenderSystem.setShaderTexture(0, new ResourceLocation(SolarHudMain.MODID, texturePath));
+        guiGraphics.blit(new ResourceLocation(SolarHudMain.MODID, texturePath),
+                0, 0, 0, 0, 168, 108, 168, 108);
+
+        String timestamp = DataHandler.getTimestamp();
+        String[] timeParts = (timestamp != null && !timestamp.isEmpty()) ? timestamp.split(" ")[1].split(":") : new String[]{"--","--"};
+        String timeString = timeParts[0] + ":" + timeParts[1];
+
+        // Draw text with modified alpha scaling.
+        guiGraphics.drawString(minecraft.font, "Montreal, QC " + timeString, 60, 19, textColor);
+        guiGraphics.drawString(minecraft.font, "CPU: " + DataHandler.getCpuPowerDraw() + "w", 25, 40, textColor);
+        guiGraphics.drawString(minecraft.font, "CONSUMPTION: " + DataHandler.getLoadPower() + "w", 25, 58, textColor);
+        guiGraphics.drawString(minecraft.font, "GENERATION: " + DataHandler.getPvVoltage() + "v | " + DataHandler.getPvPower() + "w", 25, 76, textColor);
+        guiGraphics.drawString(minecraft.font, "BATTERY: " + DataHandler.getBattVoltage() + "v | " + DataHandler.getBattPercentage() + "%", 25, 94, textColor);
+
+        // Icons.
+        RenderSystem.setShaderTexture(0, new ResourceLocation(SolarHudMain.MODID, getCpuIcon()));
+        guiGraphics.blit(new ResourceLocation(SolarHudMain.MODID, getCpuIcon()), 3, 36, 0, 0, 16, 16, 16, 16);
+
+        RenderSystem.setShaderTexture(0, new ResourceLocation(SolarHudMain.MODID, getLoadIcon()));
+        guiGraphics.blit(new ResourceLocation(SolarHudMain.MODID, getLoadIcon()), 3, 54, 0, 0, 16, 16, 16, 16);
+
+        RenderSystem.setShaderTexture(0, new ResourceLocation(SolarHudMain.MODID, getGenerationIcon()));
+        guiGraphics.blit(new ResourceLocation(SolarHudMain.MODID, getGenerationIcon()), 3, 72, 0, 0, 16, 16, 16, 16);
+
+        RenderSystem.setShaderTexture(0, new ResourceLocation(SolarHudMain.MODID, getBatteryIcon()));
+        guiGraphics.blit(new ResourceLocation(SolarHudMain.MODID, getBatteryIcon()), 3, 90, 0, 0, 16, 16, 16, 16);
+
+        RenderSystem.setShaderTexture(0, new ResourceLocation(SolarHudMain.MODID, getBatteryArrowIcon(DataHandler.getBattOverallCurrent())));
+        guiGraphics.blit(new ResourceLocation(SolarHudMain.MODID, getBatteryArrowIcon(DataHandler.getBattOverallCurrent())),
+                12, 90, 0, 0, 16, 16, 16, 16);
+
+        guiGraphics.pose().popPose();
+
+        // Reset shader color.
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+    }
+
+    private static String getTexturePath(String timestamp) {
+        if (timestamp == null || timestamp.isEmpty()) {
+            return "textures/gui/mc_sb_hud_day.png";
+        }
 
         try {
-            RenderSystem.setShaderTexture(0, new ResourceLocation("solarhud", texturePath.toLowerCase()));
-            //Renders the background image.
-            guiGraphics.blit(new ResourceLocation("solarhud", texturePath.toLowerCase()), 60, event.getWindow().getGuiScaledHeight() - 108, 0, 0, 168, 108, 168, 108);
-
-            String[] timeParts = DataHandler.getTimestamp().split(" ")[1].split(":" );
-            String timeString = timeParts[0] + ":" + timeParts[1];
-            //Renders the Text components.
-            guiGraphics.drawString(minecraft.font, "Montreal, QC " + timeString, 120, event.getWindow().getGuiScaledHeight() - 89, 0xFFFFFF);
-            guiGraphics.drawString(minecraft.font, "CPU: " + DataHandler.getCpuPowerDraw() + "w", 85, event.getWindow().getGuiScaledHeight() - 68, 0xFFFFFF);
-            guiGraphics.drawString(minecraft.font, "CONSUMPTION: " + DataHandler.getLoadPower() + "w", 85, event.getWindow().getGuiScaledHeight() - 50, 0xFFFFFF);
-            guiGraphics.drawString(minecraft.font, "GENERATION: " + DataHandler.getPvVoltage() + "v | " + DataHandler.getPvPower() + "w", 85, event.getWindow().getGuiScaledHeight() - 32, 0xFFFFFF);
-            guiGraphics.drawString(minecraft.font, "BATTERY: " + DataHandler.getBattVoltage() + "v | " + DataHandler.getBattPercentage() + "%", 85, event.getWindow().getGuiScaledHeight() - 14, 0xFFFFFF);
-
-            //Renders the icons.
-            drawIcon(guiGraphics, getCpuIcon(), 63, event.getWindow().getGuiScaledHeight() - 72);
-            drawIcon(guiGraphics, getLoadIcon(), 63, event.getWindow().getGuiScaledHeight() - 54);
-            drawIcon(guiGraphics, getGenerationIcon(), 63, event.getWindow().getGuiScaledHeight() - 36);
-            drawIcon(guiGraphics, getBatteryIcon(), 63, event.getWindow().getGuiScaledHeight() - 18);
-
-            //Renders arrow icon for battery charge/discharge
-            String arrowIcon = getBatteryArrowIcon(DataHandler.getBattOverallCurrent());
-            drawIcon(guiGraphics, arrowIcon, 72, event.getWindow().getGuiScaledHeight() - 18);
+            int hour = Integer.parseInt(timestamp.split(" ")[1].split(":")[0]);
+            if (hour >= 6 && hour < 9) {
+                return "textures/gui/mc_sb_hud_dawn.png";
+            } else if (hour >= 9 && hour < 18) {
+                return "textures/gui/mc_sb_hud_day.png";
+            } else if (hour >= 18 && hour < 21) {
+                return "textures/gui/mc_sb_hud_dusk.png";
+            } else {
+                return "textures/gui/mc_sb_hud_night.png";
+            }
         } catch (Exception e) {
-            LOGGER.error("Error rendering Solar HUD: {}", e.getMessage(), e);
-        }
-    }
-
-    //Setup drawIcon (icon sizes).
-    private static void drawIcon(GuiGraphics guiGraphics, String iconPath, int x, int y) {
-        RenderSystem.setShaderTexture(0, new ResourceLocation("solarhud", iconPath.toLowerCase()));
-        guiGraphics.blit(new ResourceLocation("solarhud", iconPath.toLowerCase()), x, y, 0, 0, 16, 16, 16, 16);
-    }
-
-    //Selects the background depending on real world hour.
-    private static String getTexturePath(String timestamp) {
-        int hour = Integer.parseInt(timestamp.split(" ")[1].split(":" )[0]);
-        if (hour >= 6 && hour < 9) {
-            return "textures/gui/mc_sb_hud_dawn.png";
-        } else if (hour >= 9 && hour < 18) {
+            LOGGER.error("Error parsing timestamp '{}': {}", timestamp, e.getMessage());
             return "textures/gui/mc_sb_hud_day.png";
-        } else if (hour >= 18 && hour < 21) {
-            return "textures/gui/mc_sb_hud_dusk.png";
-        } else {
-            return "textures/gui/mc_sb_hud_night.png";
         }
     }
 
-    //Selects CPU icon colour depending on power draw.
     private static String getCpuIcon() {
         float cpuPowerDraw = DataHandler.getCpuPowerDraw();
         if (cpuPowerDraw < 5) {
@@ -143,7 +141,6 @@ public class SolarHud {
         }
     }
 
-    //Selects Globe icon depending on consumption (watts).
     private static String getLoadIcon() {
         float loadPower = DataHandler.getLoadPower();
         if (loadPower < 10) {
@@ -155,7 +152,6 @@ public class SolarHud {
         }
     }
 
-    //Selects Sun icon depending on Power generation.
     private static String getGenerationIcon() {
         float pvPower = DataHandler.getPvPower();
         if (pvPower < 10) {
@@ -167,7 +163,6 @@ public class SolarHud {
         }
     }
 
-    //Selects battery icon depending on charge.
     private static String getBatteryIcon() {
         float battPercentage = DataHandler.getBattPercentage();
         if (battPercentage > 75) {
@@ -181,7 +176,6 @@ public class SolarHud {
         }
     }
 
-    //Selects arrow icon (up or down) depending on positive or negative current.
     private static String getBatteryArrowIcon(float battOverallCurrent) {
         if (battOverallCurrent > 0) {
             return "textures/gui/mc_sb_icons_iso_arrow_up.png";

@@ -9,6 +9,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -17,61 +18,101 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Mod.EventBusSubscriber(modid = "solarhud", value = Dist.CLIENT)
 public class DataHandler {
-    //The URL of the rest API for the Solar Server
     private static final String API_URL = "https://photon.sunblockone.milieux.ca/";
     private static final Logger LOGGER = LogManager.getLogger();
 
-    private static String timestamp;
-    private static float pvVoltage;
-    private static float pvCurrent;
-    private static float pvPower;
-    private static float battVoltage;
-    private static float battChargeCurrent;
-    private static float battChargePower;
-    private static float loadPower;
-    private static float battPercentage;
-    private static float battOverallCurrent;
-    private static float cpuPowerDraw;
-    private static String powerProfile;
+    private static final long UPDATE_INTERVAL = 10000; // 10 seconds
+    private static long lastUpdateTime = 0;
+
+    // Data variables with defaults
+    private static String timestamp = "";
+    private static float pvVoltage = 0.0f;
+    private static float pvCurrent = 0.0f;
+    private static float pvPower = 0.0f;
+    private static float battVoltage = 0.0f;
+    private static float battChargeCurrent = 0.0f;
+    private static float battChargePower = 0.0f;
+    private static float loadPower = 0.0f;
+    private static float battPercentage = 0.0f;
+    private static float battOverallCurrent = 0.0f;
+    private static float cpuPowerDraw = 0.0f;
+    private static String powerProfile = "";
+
+    // Use a single-threaded executor for async network calls
+    private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END && Minecraft.getInstance().level != null) {
             long currentTime = System.currentTimeMillis();
-            if (currentTime % 10000 < 50) { // Update every 10 seconds
-                fetchAndStoreApiData();
+            if (currentTime - lastUpdateTime >= UPDATE_INTERVAL) {
+                lastUpdateTime = currentTime;
+                // Run the fetch on a separate thread
+                EXECUTOR.submit(DataHandler::fetchAndStoreApiDataAsync);
             }
         }
     }
-    //Gets all the variables as floats except timestamp and power profile.
-    public static void fetchAndStoreApiData() {
+
+    private static void fetchAndStoreApiDataAsync() {
         String responseData = fetchApiData();
         if (responseData != null) {
             try {
                 JsonObject dataObject = JsonParser.parseString(responseData).getAsJsonObject();
-                timestamp = dataObject.get("Timestamp").getAsString();
-                pvVoltage = dataObject.get("PVVoltage").getAsFloat();
-                pvCurrent = dataObject.get("PVCurrent").getAsFloat();
-                pvPower = dataObject.get("PVPower").getAsFloat();
-                battVoltage = dataObject.get("BattVoltage").getAsFloat();
-                battChargeCurrent = dataObject.get("BattChargeCurrent").getAsFloat();
-                battChargePower = dataObject.get("BattChargePower").getAsFloat();
-                loadPower = dataObject.get("LoadPower").getAsFloat();
-                battPercentage = dataObject.get("BattPercentage").getAsFloat();
-                battOverallCurrent = dataObject.get("BattOverallCurrent").getAsFloat();
-                cpuPowerDraw = dataObject.get("CPUPowerDraw").getAsFloat();
-                powerProfile = dataObject.get("PowerProfile").getAsString();
+
+                String newTimestamp = safeGetString(dataObject, "Timestamp");
+                float newPvVoltage = safeGetFloat(dataObject, "PVVoltage");
+                float newPvCurrent = safeGetFloat(dataObject, "PVCurrent");
+                float newPvPower = safeGetFloat(dataObject, "PVPower");
+                float newBattVoltage = safeGetFloat(dataObject, "BattVoltage");
+                float newBattChargeCurrent = safeGetFloat(dataObject, "BattChargeCurrent");
+                float newBattChargePower = safeGetFloat(dataObject, "BattChargePower");
+                float newLoadPower = safeGetFloat(dataObject, "LoadPower");
+                float newBattPercentage = safeGetFloat(dataObject, "BattPercentage");
+                float newBattOverallCurrent = safeGetFloat(dataObject, "BattOverallCurrent");
+                float newCpuPowerDraw = safeGetFloat(dataObject, "CPUPowerDraw");
+                String newPowerProfile = safeGetString(dataObject, "PowerProfile");
+
+                // Update fields atomically to avoid partial updates
+                synchronized (DataHandler.class) {
+                    timestamp = newTimestamp;
+                    pvVoltage = newPvVoltage;
+                    pvCurrent = newPvCurrent;
+                    pvPower = newPvPower;
+                    battVoltage = newBattVoltage;
+                    battChargeCurrent = newBattChargeCurrent;
+                    battChargePower = newBattChargePower;
+                    loadPower = newLoadPower;
+                    battPercentage = newBattPercentage;
+                    battOverallCurrent = newBattOverallCurrent;
+                    cpuPowerDraw = newCpuPowerDraw;
+                    powerProfile = newPowerProfile;
+                }
+
+                LOGGER.debug("Successfully updated data: Timestamp: {}, PV Power: {}, Battery: {}%",
+                        timestamp, pvPower, battPercentage);
+
             } catch (Exception e) {
                 LOGGER.error("Failed to parse API data", e);
             }
+        } else {
+            LOGGER.warn("No data fetched from the API this cycle. Keeping previous values.");
         }
     }
-    //Tries to connect to the URL, if connection fails log message is written.
+
     public static String fetchApiData() {
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectTimeout(2000)     // 2-second connection timeout
+                .setSocketTimeout(2000)      // 2-second read timeout
+                .build();
+
+        try (CloseableHttpClient httpClient = HttpClients.custom()
+                .setDefaultRequestConfig(requestConfig)
+                .build()) {
             HttpGet request = new HttpGet(API_URL);
             HttpResponse response = httpClient.execute(request);
             HttpEntity entity = response.getEntity();
@@ -84,52 +125,39 @@ public class DataHandler {
         return null;
     }
 
-    //Getters for the data
-    public static String getTimestamp() {
-        return timestamp;
+    private static String safeGetString(JsonObject jsonObject, String key) {
+        try {
+            if (jsonObject.has(key) && !jsonObject.get(key).isJsonNull()) {
+                return jsonObject.get(key).getAsString();
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error parsing string for key '{}': {}", key, e.getMessage());
+        }
+        return "";
     }
 
-    public static float getPvVoltage() {
-        return pvVoltage;
+    private static float safeGetFloat(JsonObject jsonObject, String key) {
+        try {
+            if (jsonObject.has(key) && !jsonObject.get(key).isJsonNull()) {
+                return jsonObject.get(key).getAsFloat();
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error parsing float for key '{}': {}", key, e.getMessage());
+        }
+        return (float) 0.0;
     }
 
-    public static float getPvCurrent() {
-        return pvCurrent;
-    }
-
-    public static float getPvPower() {
-        return pvPower;
-    }
-
-    public static float getBattVoltage() {
-        return battVoltage;
-    }
-
-    public static float getBattChargeCurrent() {
-        return battChargeCurrent;
-    }
-
-    public static float getBattChargePower() {
-        return battChargePower;
-    }
-
-    public static float getLoadPower() {
-        return loadPower;
-    }
-
-    public static float getBattPercentage() {
-        return battPercentage;
-    }
-
-    public static float getBattOverallCurrent() {
-        return battOverallCurrent;
-    }
-
-    public static float getCpuPowerDraw() {
-        return cpuPowerDraw;
-    }
-
-    public static String getPowerProfile() {
-        return powerProfile;
-    }
+    // Getters are synchronized to ensure thread-safe reads.
+    public static synchronized String getTimestamp() { return timestamp; }
+    public static synchronized float getPvVoltage() { return pvVoltage; }
+    public static synchronized float getPvCurrent() { return pvCurrent; }
+    public static synchronized float getPvPower() { return pvPower; }
+    public static synchronized float getBattVoltage() { return battVoltage; }
+    public static synchronized float getBattChargeCurrent() { return battChargeCurrent; }
+    public static synchronized float getBattChargePower() { return battChargePower; }
+    public static synchronized float getLoadPower() { return loadPower; }
+    public static synchronized float getBattPercentage() { return battPercentage; }
+    public static synchronized float getBattOverallCurrent() { return battOverallCurrent; }
+    public static synchronized float getCpuPowerDraw() { return cpuPowerDraw; }
+    public static synchronized String getPowerProfile() { return powerProfile; }
 }
